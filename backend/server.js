@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const multer = require("multer");
 const {processPDF} = require("./services/pdfServices");
-const fs = require("fs");
+
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
