@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const multer = require("multer");
 const {processPDF} = require("./services/pdfServices");
+const fs = require("fs");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -12,6 +13,13 @@ const { generateAnswer } = require("./services/chatService");
 const { searchDocuments } = require("./services/vectorService");
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const uploadsDir = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 app.use(cors());
 app.use(express.json());
 app.get("/",(req,res)=>{
@@ -22,7 +30,7 @@ app.get("/",(req,res)=>{
 
 const storage = multer.diskStorage({
     destination:(req,file,cb)=>{
-        cb(null,"uploads/");
+        cb(null,uploadsDir);
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
