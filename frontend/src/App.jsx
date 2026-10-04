@@ -18,7 +18,7 @@ function App() {
     }
 
     const formData = new FormData();
-    formData.append("pdf", file);
+    formData.append("file", file);
 
     setUploading(true);
 
@@ -55,7 +55,7 @@ function App() {
       return;
     }
     if (!documentId) {
-  alert("Please upload a PDF first.");
+  alert("Please upload a your content first.");
   return;
 }
     const currentQuestion = question.trim();
@@ -128,18 +128,18 @@ function App() {
           </div>
 
           <div className="upload-section">
-            <input
-              id="pdf-upload"
-              type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files[0])}
-            />
+           <input
+  id="file-upload"
+  type="file"
+  accept="application/pdf,image/jpeg,image/png,image/webp"
+  onChange={(e) => setFile(e.target.files[0])}
+/>
 
             <button
               onClick={uploadPDF}
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload PDF"}
+              {uploading ? "Uploading..." : "Upload CONTENT"}
             </button>
           </div>
         </header>
@@ -147,7 +147,7 @@ function App() {
         {/* Upload status */}
         {uploaded && (
           <div className="upload-status">
-            ✓ PDF uploaded successfully
+            ✓ CONTENT uploaded successfully
           </div>
         )}
 

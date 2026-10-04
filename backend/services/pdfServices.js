@@ -1,24 +1,44 @@
 const { PDFLoader } = require("@langchain/community/document_loaders/fs/pdf");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
+const {extractPDFTables} = require("./pdfTableService");
+const {processTables} = require("./tableService");
+async function processPDF(filePath,originalName) {
+  const loader = new PDFLoader(filePath);
 
-async function processPDF(filePath) {
-    // Load PDF
-    const loader = new PDFLoader(filePath);
-    const docs = await loader.load();
+  const docs = await loader.load();
 
-    console.log(`PDF loaded. Pages: ${docs.length}`);
+  console.log(`PDF loaded. Pages: ${docs.length}`);
 
-    // Split text into chunks
-    const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-    });
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
 
-    const chunks = await splitter.splitDocuments(docs);
+  const textChunks = await splitter.splitDocuments(docs);
 
-    console.log(`Created ${chunks.length} chunks`);
+  console.log(`Created ${textChunks.length} text chunks`);
 
-    return chunks;
+  const tables = await extractPDFTables(filePath);
+
+  console.log(`Detected ${tables.length} tables`);
+
+  const tableChunks = tables.flatMap((table) =>
+  processTables(
+    [table],
+    {
+      source: originalName,
+      page: table.page,
+    }
+  )
+);
+
+  return {
+  type: "pdf",
+  chunks: [
+    ...textChunks,
+    ...tableChunks,
+  ],
+};
 }
 
 module.exports = {

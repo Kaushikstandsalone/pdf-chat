@@ -1,4 +1,6 @@
 require("dotenv").config();
+const EMBEDDING_BATCH_SIZE = 10;
+const EMBEDDING_DELAY_MS = 15000;
 
 const { GoogleGenerativeAIEmbeddings } =
     require("@langchain/google-genai");
@@ -25,6 +27,47 @@ const pinecone = new Pinecone({
     apiKey: process.env.PINECONE_API_KEY,
 });
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+async function embedBatchWithRetry(texts) {
+  const maxRetries = 5;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await embeddingModel.batchEmbedContents({
+        requests: texts.map((text) => ({
+          content: {
+            role: "RETRIEVAL_DOCUMENT",
+            parts: [{ text }],
+          },
+        })),
+      });
+    } catch (error) {
+      console.error(
+        `Embedding request failed (attempt ${attempt + 1}/${maxRetries + 1})`
+      );
+
+      console.error("Error:", error.message);
+
+      if (attempt === maxRetries) {
+        throw error;
+      }
+
+      const delay =
+        Math.min(60000, 5000 * Math.pow(2, attempt));
+
+      console.log(
+        `Retrying embedding request in ${delay / 1000}s...`
+      );
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, delay)
+      );
+    }
+  }
+}
+
 async function storeDocuments(chunks,documentId) {
   const index = pinecone.Index(process.env.PINECONE_INDEX);
 
@@ -37,7 +80,7 @@ async function storeDocuments(chunks,documentId) {
 
   console.log(`Valid chunks: ${validChunks.length}/${chunks.length}`);
 
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = EMBEDDING_BATCH_SIZE;
   let totalStored = 0;
 
   for (let i = 0; i < validChunks.length; i += BATCH_SIZE) {
@@ -48,14 +91,7 @@ async function storeDocuments(chunks,documentId) {
       `Embedding chunks ${i} - ${i + batch.length - 1}`
     );
 
-   const result = await embeddingModel.batchEmbedContents({
-  requests: texts.map((text) => ({
-    content: {
-      role: "RETRIEVAL_DOCUMENT",
-      parts: [{ text }],
-    },
-  })),
-});
+  const result = await embedBatchWithRetry(texts);
 
 const vectors = result.embeddings.map(
   (embedding) => embedding.values
@@ -77,14 +113,48 @@ console.log("Number of vectors:", vectors.length);
       }
 
       records.push({
-        id: `chunk-${Date.now()}-${i + j}`,
-        values: vectors[j],
-        metadata: {
-          text: batch[j].pageContent,
-          page: batch[j].metadata?.loc?.pageNumber || 0,
-          documentId:documentId
-        },
-      });
+  id: batch[j].chunkId,
+  values: vectors[j],
+
+  metadata: {
+    chunkId: batch[j].chunkId,
+
+    text: batch[j].pageContent,
+
+    page:
+  batch[j].metadata?.page || 0,
+
+    documentId: documentId,
+
+    type:
+      batch[j].metadata?.type ||
+      "text",
+
+    source:
+      batch[j].metadata?.source ||
+      "",
+
+    tableIndex:
+      batch[j].metadata?.tableIndex ??
+      -1,
+
+    tableTitle:
+      batch[j].metadata?.tableTitle ||
+      "",
+
+    headers:
+      batch[j].metadata?.headers ||
+      "",
+
+    rows:
+      batch[j].metadata?.rows ||
+      "",
+
+    visualType:
+      batch[j].metadata?.visualType ||
+      "",
+  },
+});
     }
 
     // Don't call Pinecone with an empty array
@@ -102,6 +172,13 @@ console.log("Number of vectors:", vectors.length);
     console.log(
       `Stored ${records.length} vectors in Pinecone`
     );
+//     if (i + BATCH_SIZE < validChunks.length) {
+//   console.log(
+//     `Waiting ${EMBEDDING_DELAY_MS / 1000}s before next embedding batch...`
+//   );
+
+//   // await sleep(EMBEDDING_DELAY_MS);
+// }
   }
 
   if (totalStored === 0) {
