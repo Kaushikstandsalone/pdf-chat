@@ -123,7 +123,7 @@ function App() {
         {/* Header */}
         <header className="header">
           <div>
-            <h1>Chat with PDF</h1>
+            <h1>DocuRAG</h1>
             <p>Ask questions about your document</p>
           </div>
 
@@ -156,9 +156,9 @@ function App() {
 
           {history.length === 0 && !asking && (
             <div className="welcome">
-              <h2>👋 Start chatting with your PDF</h2>
+              <h2>👋 Start chatting with your content</h2>
               <p>
-                Upload a PDF and ask questions about its contents.
+                Upload a PDF/Image/DOC and ask questions about its contents.
               </p>
             </div>
           )}
